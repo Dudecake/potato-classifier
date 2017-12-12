@@ -62,25 +62,31 @@ void MainWindow::classify()
         DSImage::ImagePNG<float> imageMat(fileName.toStdString(), true);
         DSLib::Matrix<DSImage::ImagePNG<float>> resultMat;
         std::vector<DSImage::ImagePNG<float>> images;
+//        std::vector<std::shared_future<DSImage::ImagePNG<float>>> futures;
         unsigned int patchSize = 14;
-        unsigned int imageX = imageMat.rows.count() / imageMat.getChannelCount();
+        unsigned int imageX = imageMat.rows.count();
         unsigned int imageY = imageMat.cols.count() / imageMat.getChannelCount();
         //resultMat | imageMat(0, patchSize, 0, patchSize);
         auto start = high_resolution_clock::now();
+
         for (unsigned int i = 0; i < (imageX / patchSize) * (imageY / patchSize); i++)
         {
-            //resultMat ^ imageMat(patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize);
-            //images.append(imageMat(patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize));
-            if (i % (imageX / patchSize) == 0)
-            {
-                qDebug() << "Did scanline" << (i / (imageY / patchSize)) << "of" << (imageY / patchSize);
-            }
             images.push_back(getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize));
-            //images.last().saveImage();
+//            futures.push_back(std::async(std::launch::async, [&imageMat, &patchSize, &i, &imageX, &imageY](){
+//                return getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize);
+//            }));
+//            if (futures.size() >= 10)
+//            {
+//                std::transform(futures.begin(), futures.end(), images.begin(), [](std::shared_future<DSImage::ImagePNG<float>> &f) -> DSImage::ImagePNG<float> { return f.get(); });
+//                futures.clear();
+//            }
         }
+//        std::transform(futures.begin(), futures.end(), images.begin(), [](std::shared_future<DSImage::ImagePNG<float>> &f) -> DSImage::ImagePNG<float> { return f.get(); });
+//        futures.clear();
         qInfo() << "Loaded image in" << duration_cast<milliseconds>(high_resolution_clock::now() - start).count() << "ms";
+        //pipeline.setBatchSize(static_cast<unsigned int>(images.size()));
         DSLib::Table<> modelData = (DSTypes::ctFeature | DSLib::Matrix<DSImage::ImagePNG<float>>(static_cast<unsigned int>(images.size()), 1u, images));
-        DSLib::Matrix<int> valScore = pipeline.apply(modelData);
+        DSLib::Table<unsigned int> valScore = pipeline.apply(modelData);
 //        for(unsigned int idx = 0; idx < imageX / patchSize; idx++)
 //            for(unsigned int idy = 0; idy < imageY / patchSize; idy++)
 //                images.push_back(imageMat(patchSize * idy, patchSize, patchSize * idx, patchSize));
@@ -88,9 +94,10 @@ void MainWindow::classify()
         image.fill(Qt::black);
         QPainter painter;
         painter.begin(&image);
-        for (unsigned int i = 0; i < valScore.data().size() / 2; i++)
+        DSLib::Matrix<float> results = valScore.findMatrix(DSTypes::ctResult, DSTypes::dtFloat)->data();
+        for (unsigned int i = 0; i < results.data().size() / 2; i++)
         {
-            switch (valScore.data().at(i))
+            switch (static_cast<int>(results.data().at(i)))
             {
                 case 0:
                     painter.setBrush(Qt::red);

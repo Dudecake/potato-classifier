@@ -40,17 +40,17 @@ class MainWindow : public QMainWindow
         static inline DSImage::ImagePNG<float> getSubSection(DSImage::ImagePNG<float> &image, unsigned int x, unsigned int width, unsigned int y, unsigned int height)
         {
             return DSImage::ImagePNG<float>(std::string(std::tmpnam(nullptr)) + ".png",
-                                            (image.getChannel(0).mat()(x, width, y, height) |
-                                             image.getChannel(1).mat()(x, width, y, height) |
-                                             image.getChannel(2).mat()(x, width, y, height)),
+                                            (image.getChannel(0).dup()(x, width, y, height).dup() |
+                                             image.getChannel(1).dup()(x, width, y, height).dup() |
+                                             image.getChannel(2).dup()(x, width, y, height).dup()),
                                             DSTypes::ImageType::itRGB8Planar);
         }
         static inline DSImage::ImagePNG<float>* getSubSectionPtr(DSImage::ImagePNG<float> &image, unsigned int x, unsigned int width, unsigned int y, unsigned int height)
         {
             return new DSImage::ImagePNG<float>(std::string(std::tmpnam(nullptr)) + ".png",
-                                            (image.getChannel(0).mat()(x, width, y, height) |
-                                             image.getChannel(1).mat()(x, width, y, height) |
-                                             image.getChannel(2).mat()(x, width, y, height)),
+                                            (image.getChannel(0).dup()(x, width, y, height).dup() |
+                                             image.getChannel(1).dup()(x, width, y, height).dup() |
+                                             image.getChannel(2).dup()(x, width, y, height).dup()),
                                             DSTypes::ImageType::itRGB8Planar);
         }
 };
