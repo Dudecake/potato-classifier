@@ -40,6 +40,7 @@ class MainWindow : public QMainWindow
 
     private:
         Ui::MainWindow *ui;
+        ThreadPool::TaskFuture<void> loadFuture;
         ThreadPool threadPool;
         DSLib::Matrix<int> gpus;
         DSModel::Caffe<float> pipeline;

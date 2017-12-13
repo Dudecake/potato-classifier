@@ -6,7 +6,7 @@
 #include <QPainter>
 #include <QtDebug>
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow), loadFuture(std::future<void>())
 {
     ui->setupUi(this);
 
@@ -55,58 +55,62 @@ void MainWindow::classify()
 
     if (!fileName.isEmpty())
     {
-        using std::chrono::high_resolution_clock;
-        using std::chrono::duration_cast;
-        using std::chrono::milliseconds;
+        loadFuture = DefaultThreadPool::submitJob([](MainWindow *window, QString &fileName){
+            using std::chrono::high_resolution_clock;
+            using std::chrono::duration_cast;
+            using std::chrono::milliseconds;
 
-        DSImage::ImagePNG<float> imageMat(fileName.toStdString(), true);
+            window->image = QPixmap(fileName);
+            window->ui->frame->setPixmap(window->image.scaled(window->ui->frame->width(), window->ui->frame->height(), Qt::KeepAspectRatio));
+            DSImage::ImagePNG<float> imageMat(fileName.toStdString(), true);
 
-        unsigned int patchSize = 14;
-        unsigned int imageX = imageMat.rows.count();
-        unsigned int imageY = imageMat.cols.count() / imageMat.getChannelCount();
-        DSLib::Matrix<DSImage::ImagePNG<float>> resultMat;
-        std::vector<DSImage::ImagePNG<float>> images((imageX / patchSize) * (imageY / patchSize));
-        std::vector<ThreadPool::TaskFuture<DSImage::ImagePNG<float>>> futures;
-        //resultMat | imageMat(0, patchSize, 0, patchSize);
-        auto start = high_resolution_clock::now();
+            unsigned int patchSize = 14;
+            unsigned int imageX = imageMat.rows.count();
+            unsigned int imageY = imageMat.cols.count() / imageMat.getChannelCount();
+            DSLib::Matrix<DSImage::ImagePNG<float>> resultMat;
+            std::vector<DSImage::ImagePNG<float>> images((imageX / patchSize) * (imageY / patchSize));
+            std::vector<ThreadPool::TaskFuture<DSImage::ImagePNG<float>>> futures;
+            //resultMat | imageMat(0, patchSize, 0, patchSize);
+            auto start = high_resolution_clock::now();
 
-        for (unsigned int i = 0; i < (imageX / patchSize) * (imageY / patchSize); i++)
-        {
-            //images.push_back(getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize));
-            futures.push_back(threadPool.submit([](DSImage::ImagePNG<float> &imageMat, const unsigned int i, const unsigned int imageX, const unsigned int imageY, const unsigned int &patchSize){
-                return MainWindow::getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize);
-            }, imageMat, i, imageX, imageY, patchSize));
-        }
-        std::transform(futures.begin(), futures.end(), images.begin(), [](ThreadPool::TaskFuture<DSImage::ImagePNG<float>> &f) -> DSImage::ImagePNG<float> { return f.get(); });
-        futures.clear();
-        qInfo() << "Loaded image in" << duration_cast<milliseconds>(high_resolution_clock::now() - start).count() << "ms";
-        //pipeline.setBatchSize(static_cast<unsigned int>(images.size()));
-        DSLib::Table<> modelData = (DSTypes::ctFeature | DSLib::Matrix<DSImage::ImagePNG<float>>(static_cast<unsigned int>(images.size()), 1u, images));
-        DSLib::Table<unsigned int> valScore = pipeline.apply(modelData);
-//        for(unsigned int idx = 0; idx < imageX / patchSize; idx++)
-//            for(unsigned int idy = 0; idy < imageY / patchSize; idy++)
-//                images.push_back(imageMat(patchSize * idy, patchSize, patchSize * idx, patchSize));
-        image = QPixmap(QSize(static_cast<int>(imageX), static_cast<int>(imageY)));
-        image.fill(Qt::black);
-        QPainter painter;
-        painter.begin(&image);
-        DSLib::Matrix<float> results = valScore.findMatrix(DSTypes::ctResult, DSTypes::dtFloat)->data();
-        for (unsigned int i = 0; i < results.data().size() / 2; i++)
-        {
-            switch (static_cast<int>(results.data().at(i)))
+            for (unsigned int i = 0; i < (imageX / patchSize) * (imageY / patchSize); i++)
             {
-                case 0:
-                    painter.setBrush(Qt::red);
-                    break;
-                case 1:
-                    painter.setBrush(Qt::black);
-                    break;
-                default:
-                    break;
+                //images.push_back(getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize));
+                futures.push_back(window->threadPool.submit([](DSImage::ImagePNG<float> &imageMat, const unsigned int i, const unsigned int imageX, const unsigned int imageY, const unsigned int &patchSize){
+                    return MainWindow::getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize);
+                }, imageMat, i, imageX, imageY, patchSize));
             }
-            painter.drawRect(static_cast<int>((i % (imageX / patchSize)) * patchSize), static_cast<int>((i / (imageY / patchSize)) * patchSize), static_cast<int>(patchSize), static_cast<int>(patchSize));
-        }
-        ui->frame->setPixmap(image.scaled(1261, 651,Qt::KeepAspectRatio));
+            std::transform(futures.begin(), futures.end(), images.begin(), [](ThreadPool::TaskFuture<DSImage::ImagePNG<float>> &f) -> DSImage::ImagePNG<float> { return f.get(); });
+            futures.clear();
+            qInfo() << "Loaded image in" << duration_cast<milliseconds>(high_resolution_clock::now() - start).count() << "ms";
+            //pipeline.setBatchSize(static_cast<unsigned int>(images.size()));
+            DSLib::Table<> modelData = (DSTypes::ctFeature | DSLib::Matrix<DSImage::ImagePNG<float>>(static_cast<unsigned int>(images.size()), 1u, images));
+            DSLib::Table<unsigned int> valScore = window->pipeline.apply(modelData);
+    //        for(unsigned int idx = 0; idx < imageX / patchSize; idx++)
+    //            for(unsigned int idy = 0; idy < imageY / patchSize; idy++)
+    //                images.push_back(imageMat(patchSize * idy, patchSize, patchSize * idx, patchSize));
+            //image = QPixmap(QSize(static_cast<int>(imageX), static_cast<int>(imageY)));
+            //window->image.fill(Qt::black);
+            QPainter painter;
+            painter.begin(&window->image);
+            DSLib::Matrix<float> results = valScore.findMatrix(DSTypes::ctResult, DSTypes::dtFloat)->data();
+            for (unsigned int i = 0; i < results.data().size() / 2; i++)
+            {
+                switch (static_cast<int>(results.data().at(i)))
+                {
+                    case 0:
+                        painter.setBrush(Qt::red);
+                        break;
+                    case 1:
+                        painter.setBrush(Qt::black);
+                        break;
+                    default:
+                        break;
+                }
+                painter.drawRect(static_cast<int>((i % (imageX / patchSize)) * patchSize), static_cast<int>((i / (imageY / patchSize)) * patchSize), static_cast<int>(patchSize), static_cast<int>(patchSize));
+            }
+            window->ui->frame->setPixmap(window->image);
+        }, this, fileName);
     }
 }
 
@@ -115,6 +119,7 @@ void MainWindow::saveClassification()
     QString fileName = QFileDialog::getSaveFileName(this, QStringLiteral("Save classification"), QStandardPaths::writableLocation(QStandardPaths::HomeLocation), QStringLiteral("PNG Files (*.png)"));
     if (!fileName.isEmpty())
     {
+        loadFuture.get();
         image.save(fileName);
     }
 }

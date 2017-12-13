@@ -57,7 +57,7 @@ else()
 endif()
 
 if(UNIX OR MINGW)
-    set(CMAKE_CXX_FLAGS -march=native -pipe -Wall -Wpedantic -Werror")
+    set(CMAKE_CXX_FLAGS "-march=native -pipe -Wall -Wpedantic -Werror")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -Og -fvar-tracking-assignments")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3")
