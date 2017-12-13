@@ -44,7 +44,7 @@ find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
 find_package(Caffe REQUIRED)
 
 set(SRC "main.cpp" "mainwindow.cpp" "mainwindow.ui")
-set(HEADERS "mainwindow.h")
+set(HEADERS "mainwindow.h" "threadsafequeue.hpp" "threadpool.hpp")
 add_executable(${PROJECT_NAME} ${SRC} ${HEADERS})
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14)

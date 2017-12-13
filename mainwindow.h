@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <ddsl.hpp>
 
+#include "threadpool.hpp"
+
 namespace Ui
 {
 class MainWindow;
@@ -25,6 +27,10 @@ class MainWindow : public QMainWindow
             setCaffeGPUs(gpus);
             #endif
         }
+        std::string sayHi(std::string name) const
+        {
+            return std::string("Hi ").append(name);
+        }
         ~MainWindow();
 
     public slots:
@@ -34,10 +40,11 @@ class MainWindow : public QMainWindow
 
     private:
         Ui::MainWindow *ui;
+        ThreadPool threadPool;
         DSLib::Matrix<int> gpus;
         DSModel::Caffe<float> pipeline;
         QPixmap image;
-        static inline DSImage::ImagePNG<float> getSubSection(DSImage::ImagePNG<float> &image, unsigned int x, unsigned int width, unsigned int y, unsigned int height)
+        static inline DSImage::ImagePNG<float> getSubSection(DSImage::ImagePNG<float> &image, const unsigned int x, const unsigned int width, const unsigned int y, const unsigned int height)
         {
             return DSImage::ImagePNG<float>(std::string(std::tmpnam(nullptr)) + ".png",
                                             (image.getChannel(0).dup()(x, width, y, height).dup() |
@@ -45,9 +52,9 @@ class MainWindow : public QMainWindow
                                              image.getChannel(2).dup()(x, width, y, height).dup()),
                                             DSTypes::ImageType::itRGB8Planar);
         }
-        static inline DSImage::ImagePNG<float>* getSubSectionPtr(DSImage::ImagePNG<float> &image, unsigned int x, unsigned int width, unsigned int y, unsigned int height)
+        static inline void getSubSection(DSImage::ImagePNG<float> &res, DSImage::ImagePNG<float> &image, unsigned int x, unsigned int width, unsigned int y, unsigned int height)
         {
-            return new DSImage::ImagePNG<float>(std::string(std::tmpnam(nullptr)) + ".png",
+            res = DSImage::ImagePNG<float>(std::string(std::tmpnam(nullptr)) + ".png",
                                             (image.getChannel(0).dup()(x, width, y, height).dup() |
                                              image.getChannel(1).dup()(x, width, y, height).dup() |
                                              image.getChannel(2).dup()(x, width, y, height).dup()),
