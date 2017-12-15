@@ -61,6 +61,7 @@ class MainWindow : public QMainWindow
                                              image.getChannel(2).dup()(x, width, y, height).dup()),
                                             DSTypes::ImageType::itRGB8Planar);
         }
+        static void handleImage(MainWindow *window, QString &fileName);
 };
 
 #endif // MAINWINDOW_H
