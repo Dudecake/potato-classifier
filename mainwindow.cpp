@@ -30,24 +30,24 @@ void MainWindow::loadDDSLModel()
     QString dirName = QFileDialog::getExistingDirectory(this, QStringLiteral("Open trained model"), QStandardPaths::writableLocation(QStandardPaths::HomeLocation));
     if (!dirName.isEmpty())
     {
-        QDir dir(dirName);
-        QString modelName, solverName, pipelineName;
-        QDir::setCurrent(dirName);
-        for (QString file : dir.entryList())
-        {
-            if (file.endsWith("prototxt"))
+            QDir dir(dirName);
+            QString modelName, solverName, pipelineName;
+            QDir::setCurrent(dirName);
+            for (QString file : dir.entryList())
             {
-                if (file.contains("model"))
-                    modelName = file;
-                else if(file.contains("solver"))
-                    solverName = file;
+                if (file.endsWith("prototxt"))
+                {
+                    if (file.contains("model"))
+                        modelName = file;
+                    else if(file.contains("solver"))
+                        solverName = file;
+                }
+                else if (file.endsWith("caffemodel.ddsl"))
+                    pipelineName = file;
             }
-            else if (file.endsWith("caffemodel.ddsl"))
-                pipelineName = file;
-        }
-        // TODO: Load ddsl model
-        pipeline = +DSModel::Caffe<float>((DSTypes::dtFloat | 0.f || 1.f), modelName.toStdString(), solverName.toStdString(), gpus);
-        pipeline.read(pipelineName.toStdString());
+            // TODO: Load ddsl model
+            pipeline = +DSModel::Caffe<float>((DSTypes::dtFloat | 0.f || 1.f), modelName.toStdString(), solverName.toStdString(), gpus);
+            pipeline.read(pipelineName.toStdString());
     }
 }
 
@@ -74,12 +74,12 @@ void MainWindow::saveClassification()
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     ui->frame->resize(event->size().width() - 20, event->size().height() - 59);
-    ui->modelLoadButton->move(ui->modelLoadButton->geometry().x(), event->size().height() - 59);
-    ui->classifyButton->move(ui->classifyButton->geometry().x(), event->size().height() - 59);
-    ui->saveButton->move(ui->saveButton->geometry().x(), event->size().height() - 59);
+    ui->modelLoadButton->move(ui->modelLoadButton->geometry().x(), event->size().height() - 40);
+    ui->classifyButton->move(ui->classifyButton->geometry().x(), event->size().height() - 40);
+    ui->saveButton->move(ui->saveButton->geometry().x(), event->size().height() - 40);
     if (!image.isNull())
     {
-        ui->frame->setPixmap(image);
+        ui->frame->setPixmap(image.scaled(ui->frame->width(), ui->frame->height(), Qt::KeepAspectRatio));
     }
 }
 
@@ -140,7 +140,7 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
             //int rectY = static_cast<int>((((i + 1) / (imageY / patchSize)) * patchSize) - 1);
             painter.drawRect(static_cast<int>((i % (imageX / patchSize)) * patchSize), static_cast<int>((patchSize * patchSize) * (i + 1) / imageY), static_cast<int>(patchSize), static_cast<int>(patchSize));
         }
-        window->ui->frame->setPixmap(window->image);
+        window->ui->frame->setPixmap(window->image.scaled(window->ui->frame->width(), window->ui->frame->height(), Qt::KeepAspectRatio));
     }
     catch (const std::exception &ex)
     {
