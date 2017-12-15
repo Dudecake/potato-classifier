@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QtDebug>
 #include <QMessageBox>
+#include <QResizeEvent>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow), loadFuture(std::future<void>())
 {
@@ -56,8 +57,7 @@ void MainWindow::classify()
 
     if (!fileName.isEmpty())
     {
-        //loadFuture = DefaultThreadPool::submitJob(&MainWindow::handleImage, this, fileName);
-        handleImage(this, fileName);
+        loadFuture = DefaultThreadPool::submitJob(&MainWindow::handleImage, this, fileName);
     }
 }
 
@@ -68,6 +68,18 @@ void MainWindow::saveClassification()
     {
         loadFuture.get();
         image.save(fileName);
+    }
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    ui->frame->resize(event->size().width() - 20, event->size().height() - 59);
+    ui->modelLoadButton->move(ui->modelLoadButton->geometry().x(), event->size().height() - 59);
+    ui->classifyButton->move(ui->classifyButton->geometry().x(), event->size().height() - 59);
+    ui->saveButton->move(ui->saveButton->geometry().x(), event->size().height() - 59);
+    if (!image.isNull())
+    {
+        ui->frame->setPixmap(image);
     }
 }
 
@@ -93,6 +105,10 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
     {
         //images.push_back(getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize));
         futures.push_back(window->threadPool.submit([](DSImage::ImagePNG<float> &imageMat, const unsigned int i, const unsigned int imageX, const unsigned int imageY, const unsigned int &patchSize){
+            if (i % (imageX / patchSize) == 0)
+            {
+                qDebug() << "Did scanline" << (i / (imageY / patchSize)) << "of" << (imageY / patchSize);
+            }
             return MainWindow::getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize);
         }, imageMat, i, imageX, imageY, patchSize));
     }
@@ -104,11 +120,11 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
     try {
         DSLib::Table<unsigned int> valScore = window->pipeline.apply(modelData);
         //image = QPixmap(QSize(static_cast<int>(imageX), static_cast<int>(imageY)));
-        //window->image.fill(Qt::black);
         QPainter painter;
         painter.begin(&window->image);
+        painter.setOpacity(.5);
         DSLib::Matrix<float> results = valScore.findMatrix(DSTypes::ctResult, DSTypes::dtFloat)->data();
-        for (unsigned int i = 0; i < results.data().size() / 2; i++)
+        for (unsigned int i = 0; i < results.data().size(); i++)
         {
             switch (static_cast<int>(results.data().at(i)))
             {
@@ -121,9 +137,8 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
                 default:
                     break;
             }
-            int rectX = static_cast<int>((i % (static_cast<unsigned int>(window->image.width()) / patchSize)) * patchSize);
-            int rectY = static_cast<int>(((i + 1) / (static_cast<unsigned int>(window->image.height()) / patchSize)) * patchSize);
-            painter.drawRect(rectX, rectY, static_cast<int>(patchSize), static_cast<int>(patchSize));
+            //int rectY = static_cast<int>((((i + 1) / (imageY / patchSize)) * patchSize) - 1);
+            painter.drawRect(static_cast<int>((i % (imageX / patchSize)) * patchSize), static_cast<int>((patchSize * patchSize) * (i + 1) / imageY), static_cast<int>(patchSize), static_cast<int>(patchSize));
         }
         window->ui->frame->setPixmap(window->image);
     }
