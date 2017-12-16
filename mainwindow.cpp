@@ -107,7 +107,7 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
         futures.push_back(window->threadPool.submit([](DSImage::ImagePNG<float> &imageMat, const unsigned int i, const unsigned int imageX, const unsigned int imageY, const unsigned int &patchSize){
             if (i % (imageX / patchSize) == 0)
             {
-                qDebug() << "Did scanline" << (i / (imageY / patchSize)) << "of" << (imageY / patchSize);
+                qDebug() << "Did scanline" << (i / ((imageY / patchSize)) + 1) << "of" << (imageY / patchSize);
             }
             return MainWindow::getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize);
         }, imageMat, i, imageX, imageY, patchSize));
@@ -119,7 +119,6 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
     DSLib::Table<> modelData = (DSTypes::ctFeature | DSLib::Matrix<DSImage::ImagePNG<float>>(static_cast<unsigned int>(images.size()), 1u, images));
     try {
         DSLib::Table<unsigned int> valScore = window->pipeline.apply(modelData);
-        //image = QPixmap(QSize(static_cast<int>(imageX), static_cast<int>(imageY)));
         QPainter painter;
         painter.begin(&window->image);
         painter.setOpacity(.5);
@@ -137,8 +136,8 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
                 default:
                     break;
             }
-            //int rectY = static_cast<int>((((i + 1) / (imageY / patchSize)) * patchSize) - 1);
-            painter.drawRect(static_cast<int>((i % (imageX / patchSize)) * patchSize), static_cast<int>((patchSize * patchSize) * (i + 1) / imageY), static_cast<int>(patchSize), static_cast<int>(patchSize));
+            //int rectY = static_cast<int>((patchSize * patchSize) * (i + 1) / imageY);
+            painter.drawRect(static_cast<int>((i % (imageX / patchSize)) * patchSize), static_cast<int>(((i + 1) / (imageY / patchSize)) * patchSize), static_cast<int>(patchSize), static_cast<int>(patchSize));
         }
         window->ui->frame->setPixmap(window->image.scaled(window->ui->frame->width(), window->ui->frame->height(), Qt::KeepAspectRatio));
     }

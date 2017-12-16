@@ -51,17 +51,17 @@ class MainWindow : public QMainWindow
         static inline DSImage::ImagePNG<float> getSubSection(DSImage::ImagePNG<float> &image, const unsigned int x, const unsigned int width, const unsigned int y, const unsigned int height)
         {
             return DSImage::ImagePNG<float>(std::string(std::tmpnam(nullptr)) + ".png",
-                                            (image.getChannel(0).mat()(x, width, y, height) |
-                                             image.getChannel(1).mat()(x, width, y, height) |
-                                             image.getChannel(2).mat()(x, width, y, height)),
+                                            (image.getChannel(0)(x, width, y, height) |
+                                             image.getChannel(1)(x, width, y, height) |
+                                             image.getChannel(2)(x, width, y, height)),
                                             DSTypes::ImageType::itRGB8Planar);
         }
         static inline void getSubSection(DSImage::ImagePNG<float> &res, DSImage::ImagePNG<float> &image, unsigned int x, unsigned int width, unsigned int y, unsigned int height)
         {
             res = DSImage::ImagePNG<float>(std::string(std::tmpnam(nullptr)) + ".png",
-                                            (image.getChannel(0).mat()(x, width, y, height) |
-                                             image.getChannel(1).mat()(x, width, y, height)|
-                                             image.getChannel(2).mat()(x, width, y, height)),
+                                            (image.getChannel(0)(x, width, y, height) |
+                                             image.getChannel(1)(x, width, y, height)|
+                                             image.getChannel(2)(x, width, y, height)),
                                             DSTypes::ImageType::itRGB8Planar);
         }
         static void handleImage(MainWindow *window, QString &fileName);
