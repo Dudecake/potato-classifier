@@ -77,6 +77,7 @@ void MainWindow::resizeEvent(QResizeEvent *event)
     ui->modelLoadButton->move(ui->modelLoadButton->geometry().x(), event->size().height() - 40);
     ui->classifyButton->move(ui->classifyButton->geometry().x(), event->size().height() - 40);
     ui->saveButton->move(ui->saveButton->geometry().x(), event->size().height() - 40);
+    ui->loadProgressBar->setGeometry(ui->loadProgressBar->geometry().x(), event->size().height() - 40, event->size().width() - 320, ui->loadProgressBar->geometry().height());
     if (!image.isNull())
     {
         ui->frame->setPixmap(image.scaled(ui->frame->width(), ui->frame->height(), Qt::KeepAspectRatio));
@@ -101,16 +102,18 @@ void MainWindow::handleImage(MainWindow *window, QString &fileName)
     std::vector<ThreadPool::TaskFuture<DSImage::ImagePNG<float>>> futures;
     auto start = high_resolution_clock::now();
 
+    window->ui->loadProgressBar->setMaximum(static_cast<int>(imageY / patchSize));
     for (unsigned int i = 0; i < (imageX / patchSize) * (imageY / patchSize); i++)
     {
         //images.push_back(getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize));
-        futures.push_back(window->threadPool.submit([](DSImage::ImagePNG<float> &imageMat, const unsigned int i, const unsigned int imageX, const unsigned int imageY, const unsigned int &patchSize){
+        futures.push_back(window->threadPool.submit([](MainWindow *window, DSImage::ImagePNG<float> &imageMat, const unsigned int i, const unsigned int imageX, const unsigned int imageY, const unsigned int &patchSize){
             if (i % (imageX / patchSize) == 0)
             {
                 qDebug() << "Did scanline" << (i / ((imageY / patchSize)) + 1) << "of" << (imageY / patchSize);
+                window->ui->loadProgressBar->setValue(static_cast<int>(i / ((imageY / patchSize)) + 1));
             }
             return MainWindow::getSubSection(imageMat, patchSize * (i % (imageX / patchSize)), patchSize, patchSize * (i / (imageY / patchSize)), patchSize);
-        }, imageMat, i, imageX, imageY, patchSize));
+        }, window, imageMat, i, imageX, imageY, patchSize));
     }
     std::transform(futures.begin(), futures.end(), images.begin(), [](ThreadPool::TaskFuture<DSImage::ImagePNG<float>> &f) -> DSImage::ImagePNG<float> { return f.get(); });
     futures.clear();
